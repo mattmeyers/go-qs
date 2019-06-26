@@ -55,7 +55,7 @@ To parse a query string, use the `qrystr.NewQS(rawQuery string)` function. This 
 
 ## Retrieving Values
 
-The values data structure can always be directly accessed in the `QS.Values` property. Alternatively, a `.` separated path can be provided to the `Get` or `GetAll` methods. If multiple values exist at a given path, `Get` will return the first in the slice while `GetAll` will return the entire slice. Neither of these methods return an error. If no values exist at the given path, then either `""` or `[]string{}` is returned.
+The values data structure can always be directly accessed in the `QS.Values` property. Alternatively, the keys can be provided to the variadic `Get` or `GetAll` methods. If multiple values exist at a given path, `Get` will return the first in the slice while `GetAll` will return the entire slice. Neither of these methods return an error. If no values exist at the given path, then either `""` or `[]string{}` is returned.
 
 ```Go
 package main
@@ -72,19 +72,19 @@ func main() {
 
 	fmt.Printf("%v\n", qs.Values)
 	// map[k1:map[sk1:[v1 v2] sk2:[v3]] k2:map[:[v4 v5]] k3:map[:[v6 v7]]]
-	fmt.Printf("%v\n", qs.Get("k1.sk1"))
+	fmt.Printf("%v\n", qs.Get("k1", "sk1"))
 	// v1
-	fmt.Printf("%v\n", qs.GetAll("k1.sk1"))
+	fmt.Printf("%v\n", qs.GetAll("k1", "sk1"))
 	// [v1 v2]
 	fmt.Printf("%v\n", qs.Get("k2"))
 	// v4
 	fmt.Printf("%v\n", qs.GetAll("k3"))
 	// [v6 v7]
-	fmt.Printf("%v\n", qs.Get("k1.sk1"))
+	fmt.Printf("%v\n", qs.Get("k1", "sk1"))
 	// v1
-	fmt.Printf("%v\n", qs.Get("k1.sk3"))
+	fmt.Printf("%v\n", qs.Get("k1", "sk3"))
 	// ""
-	fmt.Printf("%v\n", qs.GetAll("k1.sk3"))
+	fmt.Printf("%v\n", qs.GetAll("k1", "sk3"))
 	// []
 }
 ```
