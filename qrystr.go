@@ -23,7 +23,7 @@ func NewQS(rawQuery string) (*QS, error) {
 		return nil, err
 	}
 
-	r, err := regexp.Compile(`([\w-<>]+)(?:\[([\w]+)?\])?`)
+	r, err := regexp.Compile(`([\w-<>\.]+)(?:\[([\w]+)?\])?`)
 	if err != nil {
 		return nil, err
 	}
