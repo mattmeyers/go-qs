@@ -23,7 +23,7 @@ func NewQS(rawQuery string) (*QS, error) {
 		return nil, err
 	}
 
-	r, err := regexp.Compile(`([\w-<>\.]+)(?:\[([\w]+)?\])?`)
+	r, err := regexp.Compile(`([\w-<>\.]+)(?:\[([\w-<>\.]+)?\])?`)
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +66,4 @@ func getPathComponents(path []string) []string {
 		return append(path, "")
 	}
 	return path
-
-	// parts := strings.Split(path, ".")
-	// if len(parts) == 1 {
-	// 	parts = append(parts, "")
-	// }
-	// return parts
 }
