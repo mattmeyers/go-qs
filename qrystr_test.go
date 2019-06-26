@@ -1,7 +1,6 @@
 package qrystr_test
 
 import (
-	"fmt"
 	"testing"
 
 	"bitbucket.org/mcgstrategic/qrystr"
@@ -25,7 +24,7 @@ func TestNewQS(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k"
+	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z"
 	q, _ := qrystr.NewQS(query)
 
 	table := []struct {
@@ -38,16 +37,18 @@ func TestGet(t *testing.T) {
 		{"a[g]", "a", "g", "h"},
 		{"d[]", "d", "", "f"},
 		{"j", "j", "", "k"},
+		{"FAKE KEY", "m", "n", ""},
 		{"No key", "", "", ""},
+		{"w->x", "w->x", "y", "z"},
 	}
 
 	for _, row := range table {
 		t.Run(row.Desc, func(t *testing.T) {
-			path := row.Key
+			path := []string{row.Key}
 			if row.Subkey != "" {
-				path = fmt.Sprintf("%s.%s", path, row.Subkey)
+				path = append(path, row.Subkey)
 			}
-			v := q.Get(path)
+			v := q.Get(path...)
 			if v != row.Exp {
 				t.Fatalf("Get() failed: expected %s, got %s", row.Exp, v)
 			}
@@ -68,16 +69,17 @@ func TestGetAll(t *testing.T) {
 		{"a[g]", "a", "g", []string{"h", "i"}},
 		{"d[]", "d", "", []string{"f"}},
 		{"j", "j", "", []string{"k"}},
+		{"FAKE KEY", "m", "n", []string{}},
 		{"No key", "", "", []string{}},
 	}
 
 	for _, row := range table {
 		t.Run(row.Desc, func(t *testing.T) {
-			path := row.Key
+			path := []string{row.Key}
 			if row.Subkey != "" {
-				path = fmt.Sprintf("%s.%s", path, row.Subkey)
+				path = append(path, row.Subkey)
 			}
-			v := q.GetAll(path)
+			v := q.GetAll(path...)
 			if !cmp.Equal(v, row.Exp) {
 				t.Fatalf("Get() failed: expected %v, got %v", row.Exp, v)
 			}
