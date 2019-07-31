@@ -24,7 +24,7 @@ func TestNewQS(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v"
+	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
 	q, _ := qrystr.NewQS(query)
 
 	table := []struct {
@@ -37,10 +37,11 @@ func TestGet(t *testing.T) {
 		{"a[g]", "a", "g", "h"},
 		{"d[]", "d", "", "f"},
 		{"j", "j", "", "k"},
-		{"FAKE KEY", "m", "n", ""},
+		{"FAKE KEY", "foo", "bar", ""},
 		{"No key", "", "", ""},
 		{"w->x", "w->x", "y", "z"},
 		{"q.u", "q.u", "", "v"},
+		{"m[n]", "m", "n", "o:p"},
 	}
 
 	for _, row := range table {
@@ -58,7 +59,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v"
+	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
 	q, _ := qrystr.NewQS(query)
 	table := []struct {
 		Desc   string
@@ -70,10 +71,11 @@ func TestGetAll(t *testing.T) {
 		{"a[g]", "a", "g", []string{"h", "i"}},
 		{"d[]", "d", "", []string{"f"}},
 		{"j", "j", "", []string{"k"}},
-		{"FAKE KEY", "m", "n", []string{}},
+		{"FAKE KEY", "foo", "bar", []string{}},
 		{"No key", "", "", []string{}},
 		{"w->x", "w->x", "y", []string{"z"}},
 		{"q.u", "q.u", "", []string{"v"}},
+		{"m[n]", "m", "n", []string{"o:p"}},
 	}
 
 	for _, row := range table {

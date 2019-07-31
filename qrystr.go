@@ -50,6 +50,18 @@ func (q *QS) Get(path ...string) string {
 	return ""
 }
 
+// GetWithDefault follows the provided keys and returns the value at the end.
+// If there are multiple values at the provided path, only the first
+// is returned. Use GetAllWithDefault to retrieve all values. This function does not
+// return an error. If a value is not found, then the provided default is returned.
+func (q *QS) GetWithDefault(def string, path ...string) string {
+	val := q.Get(path...)
+	if val == "" {
+		return def
+	}
+	return val
+}
+
 // GetAll follows the provided keys and returns all values at the end.
 // No error is returned from this function. If no values exists at
 // the given path, then an empty string slice is returned.
@@ -59,6 +71,17 @@ func (q *QS) GetAll(path ...string) []string {
 		return val
 	}
 	return []string{}
+}
+
+// GetAllWithDefault follows the provided keys and returns all values at the end.
+// No error is returned from this function. If no values exists at
+// the given path, then the provided default value is returned.
+func (q *QS) GetAllWithDefault(def []string, path ...string) []string {
+	vals := q.GetAll(path...)
+	if len(vals) == 0 {
+		return def
+	}
+	return vals
 }
 
 func getPathComponents(path []string) []string {
