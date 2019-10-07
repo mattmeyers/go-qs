@@ -1,4 +1,4 @@
-# qrystr
+# qs
 
 This is a query string parsing library. It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys from the returned keys. In order to be properly parsed, a query string should take the form `key1=value1&key2[]=value2&key3[subkey3]=value3...`. This query string will be parsed into the structure
 ```json

@@ -1,15 +1,15 @@
-package qrystr_test
+package qs_test
 
 import (
 	"testing"
 
-	"bitbucket.org/mcgstrategic/qrystr"
+	"bitbucket.org/mcgstrategic/qs"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewQS(t *testing.T) {
 	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k"
-	q, err := qrystr.NewQS(query)
+	q, err := qs.NewQS(query)
 	if err != nil {
 		t.Fatalf("NewQS failed with err, %s", err)
 	}
@@ -25,7 +25,7 @@ func TestNewQS(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
-	q, _ := qrystr.NewQS(query)
+	q, _ := qs.NewQS(query)
 
 	table := []struct {
 		Desc   string
@@ -60,7 +60,7 @@ func TestGet(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
-	q, _ := qrystr.NewQS(query)
+	q, _ := qs.NewQS(query)
 	table := []struct {
 		Desc   string
 		Key    string

@@ -1,4 +1,4 @@
-package qrystr
+package qs
 
 import (
 	"net/url"
