@@ -86,6 +86,8 @@ func (q *QS) navigate(path ...string) *node {
 	return nil
 }
 
+// Set follows the provided path and overwrites the values
+// at the end with the provided values.
 func (q *QS) Set(vals []interface{}, path ...string) {
 	n := q.navigate(path...)
 	if n != nil {
@@ -93,6 +95,8 @@ func (q *QS) Set(vals []interface{}, path ...string) {
 	}
 }
 
+// Add follows the provided path and appends the given value
+// to the list of values at the end.
 func (q *QS) Add(val interface{}, path ...string) {
 	n := q.navigate(path...)
 	if n != nil {
@@ -103,7 +107,7 @@ func (q *QS) Add(val interface{}, path ...string) {
 // Get follows the provided keys and returns the value at the end.
 // If there are multiple values at the provided path, only the first
 // is returned. Use GetAll to retrieve all values. This function does not
-// return an error. If a value is not found, then the empty string is returned.
+// return an error. If a value is not found, then nil is returned.
 func (q *QS) Get(path ...string) interface{} {
 	currNode := q.Values
 	var ok bool
@@ -117,19 +121,55 @@ func (q *QS) Get(path ...string) interface{} {
 		}
 
 		if i+1 == pLen {
-			return currNode.Values[0]
+			if len(currNode.Values) > 0 {
+				return currNode.Values[0]
+			}
+			return nil
 		}
 	}
 
 	return nil
 }
 
+// GetString retrieves the value at the given path as a string.
 func (q *QS) GetString(path ...string) string {
 	return cast.ToString(q.Get(path...))
 }
 
+// GetInt retrieves the value at the given path as an int. If
+// the value cannot be converted to an int, 0 is returned.
 func (q *QS) GetInt(path ...string) int {
 	return cast.ToInt(q.Get(path...))
+}
+
+// GetInt32 retrieves the value at the given path as an int32. If
+// the value cannot be converted to an int, 0 is returned.
+func (q *QS) GetInt32(path ...string) int32 {
+	return cast.ToInt32(q.Get(path...))
+}
+
+// GetInt64 retrieves the value at the given path as an int64. If
+// the value cannot be converted to an int, 0 is returned.
+func (q *QS) GetInt64(path ...string) int64 {
+	return cast.ToInt64(q.Get(path...))
+}
+
+// GetFloat32 retrieves the value at the given path as a float32. If
+// the value cannot be converted to a float, 0 is returned.
+func (q *QS) GetFloat32(path ...string) float32 {
+	return cast.ToFloat32(q.Get(path...))
+}
+
+// GetFloat64 retrieves the value at the given path as a float64. If
+// the value cannot be converted to a float, 0 is returned.
+func (q *QS) GetFloat64(path ...string) float64 {
+	return cast.ToFloat64(q.Get(path...))
+}
+
+// GetBool retrieves the value at the given path as a bool. If
+// the value cannot be converted to a float, false is returned.
+func (q *QS) GetBool(path ...string) bool {
+	return cast.ToBool(q.Get(path...))
 }
 
 // GetWithDefault follows the provided keys and returns the value at the end.
@@ -146,7 +186,7 @@ func (q *QS) GetWithDefault(def interface{}, path ...string) interface{} {
 
 // GetAll follows the provided keys and returns all values at the end.
 // No error is returned from this function. If no values exists at
-// the given path, then an empty string slice is returned.
+// the given path, then a slice of interfaces is returned.
 func (q *QS) GetAll(path ...string) []interface{} {
 	currNode := q.Values
 	var ok bool

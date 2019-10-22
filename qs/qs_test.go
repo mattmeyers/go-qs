@@ -1,24 +1,18 @@
 package qs
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewQS(t *testing.T) {
-	query := "a[b]=c" //a[b][c][d]=c&a[g]=h&a[g]=i&d[]=f&j=k"
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
 	q, err := New(query)
 	if err != nil {
 		t.Fatalf("NewQS failed with err, %s", err)
 	}
-
-	// q.Set([]interface{}{"d"}, "a", "b")
-	// out, _ := json.Marshal(q.Values.Children)
-	fmt.Printf("%T - %v\n", q.Get("a", "b"), q.Get("a", "b"))
-	fmt.Printf("%T - %v\n", q.GetString("a", "b"), q.GetString("a", "b"))
-	fmt.Printf("%T - %v\n", q.GetInt("a", "b"), q.GetInt("a", "b"))
 
 	exp := &node{
 		Key:    "",
@@ -28,12 +22,39 @@ func TestNewQS(t *testing.T) {
 				Key:    "a",
 				Values: make([]interface{}, 0),
 				Children: map[string]*node{
-					"b": {
-						Key:      "b",
-						Values:   []interface{}{"c"},
+					"b": &node{
+						Key:    "b",
+						Values: []interface{}{"123"},
+						Children: map[string]*node{
+							"c": &node{
+								Key:    "c",
+								Values: make([]interface{}, 0),
+								Children: map[string]*node{
+									"d": &node{
+										Key:      "d",
+										Values:   []interface{}{"c"},
+										Children: make(map[string]*node),
+									},
+								},
+							},
+						},
+					},
+					"g": &node{
+						Key:      "g",
+						Values:   []interface{}{"h", "i"},
 						Children: make(map[string]*node),
 					},
 				},
+			},
+			"d": &node{
+				Key:      "d",
+				Values:   []interface{}{"1.05"},
+				Children: make(map[string]*node),
+			},
+			"j": &node{
+				Key:      "j",
+				Values:   []interface{}{"true"},
+				Children: make(map[string]*node),
 			},
 		}}
 
@@ -42,71 +63,387 @@ func TestNewQS(t *testing.T) {
 	}
 }
 
-// func TestGet(t *testing.T) {
-// 	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
-// 	q, _ := qs.New(query)
+func TestQS_Get(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
 
-// 	table := []struct {
-// 		Desc   string
-// 		Key    string
-// 		Subkey string
-// 		Exp    string
-// 	}{
-// 		{"a[b]", "a", "b", "c"},
-// 		{"a[g]", "a", "g", "h"},
-// 		{"d[]", "d", "", "f"},
-// 		{"j", "j", "", "k"},
-// 		{"FAKE KEY", "foo", "bar", ""},
-// 		{"No key", "", "", ""},
-// 		{"w->x", "w->x", "y", "z"},
-// 		{"q.u", "q.u", "", "v"},
-// 		{"m[n]", "m", "n", "o:p"},
-// 	}
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want interface{}
+	}{
+		{
+			name: "Get a->b",
+			qs:   q,
+			args: args{[]string{"a", "b"}},
+			want: "123",
+		},
+		{
+			name: "Get a->b->c->d",
+			qs:   q,
+			args: args{[]string{"a", "b", "c", "d"}},
+			want: "c",
+		},
+		{
+			name: "Get a->g",
+			qs:   q,
+			args: args{[]string{"a", "g"}},
+			want: "h",
+		},
+		{
+			name: "Get d",
+			qs:   q,
+			args: args{[]string{"d"}},
+			want: "1.05",
+		},
+		{
+			name: "Get j",
+			qs:   q,
+			args: args{[]string{"j"}},
+			want: "true",
+		},
+		{
+			name: "Get z",
+			qs:   q,
+			args: args{[]string{"z"}},
+			want: nil,
+		},
+		{
+			name: "Get a",
+			qs:   q,
+			args: args{[]string{"a"}},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qs.Get(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QS.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-// 	for _, row := range table {
-// 		t.Run(row.Desc, func(t *testing.T) {
-// 			path := []string{row.Key}
-// 			if row.Subkey != "" {
-// 				path = append(path, row.Subkey)
-// 			}
-// 			v := q.Get(path...)
-// 			if v != row.Exp {
-// 				t.Fatalf("Get() failed: expected %s, got %s", row.Exp, v)
-// 			}
-// 		})
-// 	}
-// }
+func TestQS_GetString(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
 
-// func TestGetAll(t *testing.T) {
-// 	query := "a[b]=c&a[g]=h&a[g]=i&d[]=f&j=k&w->x[y]=z&q.u=v&m[n]=o:p"
-// 	q, _ := qs.NewQS(query)
-// 	table := []struct {
-// 		Desc   string
-// 		Key    string
-// 		Subkey string
-// 		Exp    []string
-// 	}{
-// 		{"a[b]", "a", "b", []string{"c"}},
-// 		{"a[g]", "a", "g", []string{"h", "i"}},
-// 		{"d[]", "d", "", []string{"f"}},
-// 		{"j", "j", "", []string{"k"}},
-// 		{"FAKE KEY", "foo", "bar", []string{}},
-// 		{"No key", "", "", []string{}},
-// 		{"w->x", "w->x", "y", []string{"z"}},
-// 		{"q.u", "q.u", "", []string{"v"}},
-// 		{"m[n]", "m", "n", []string{"o:p"}},
-// 	}
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want string
+	}{
+		{
+			name: "Get a->b",
+			qs:   q,
+			args: args{[]string{"a", "b"}},
+			want: "123",
+		},
+		{
+			name: "Get a->b->c->d",
+			qs:   q,
+			args: args{[]string{"a", "b", "c", "d"}},
+			want: "c",
+		},
+		{
+			name: "Get a->g",
+			qs:   q,
+			args: args{[]string{"a", "g"}},
+			want: "h",
+		},
+		{
+			name: "Get d",
+			qs:   q,
+			args: args{[]string{"d"}},
+			want: "1.05",
+		},
+		{
+			name: "Get j",
+			qs:   q,
+			args: args{[]string{"j"}},
+			want: "true",
+		},
+		{
+			name: "Get z",
+			qs:   q,
+			args: args{[]string{"z"}},
+			want: "",
+		},
+		{
+			name: "Get a",
+			qs:   q,
+			args: args{[]string{"a"}},
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qs.GetString(tt.args.path...); got != tt.want {
+				t.Errorf("QS.GetString() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
-// 	for _, row := range table {
-// 		t.Run(row.Desc, func(t *testing.T) {
-// 			path := []string{row.Key}
-// 			if row.Subkey != "" {
-// 				path = append(path, row.Subkey)
-// 			}
-// 			v := q.GetAll(path...)
-// 			if !cmp.Equal(v, row.Exp) {
-// 				t.Fatalf("Get() failed: expected %v, got %v", row.Exp, v)
-// 			}
-// 		})
-// 	}
-// }
+func TestQS_GetInt(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want int
+	}{
+		{
+			name: "Get a->b",
+			qs:   q,
+			args: args{[]string{"a", "b"}},
+			want: 123,
+		},
+		{
+			name: "Get a->b->c->d",
+			qs:   q,
+			args: args{[]string{"a", "b", "c", "d"}},
+			want: 0,
+		},
+		{
+			name: "Get a->g",
+			qs:   q,
+			args: args{[]string{"a", "g"}},
+			want: 0,
+		},
+		{
+			name: "Get d",
+			qs:   q,
+			args: args{[]string{"d"}},
+			want: 0,
+		},
+		{
+			name: "Get j",
+			qs:   q,
+			args: args{[]string{"j"}},
+			want: 0,
+		},
+		{
+			name: "Get z",
+			qs:   q,
+			args: args{[]string{"z"}},
+			want: 0,
+		},
+		{
+			name: "Get a",
+			qs:   q,
+			args: args{[]string{"a"}},
+			want: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qs.GetInt(tt.args.path...); got != tt.want {
+				t.Errorf("QS.GetInt() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_GetBool(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want bool
+	}{
+		{
+			name: "Get a->b",
+			qs:   q,
+			args: args{[]string{"a", "b"}},
+			want: false,
+		},
+		{
+			name: "Get a->b->c->d",
+			qs:   q,
+			args: args{[]string{"a", "b", "c", "d"}},
+			want: false,
+		},
+		{
+			name: "Get a->g",
+			qs:   q,
+			args: args{[]string{"a", "g"}},
+			want: false,
+		},
+		{
+			name: "Get d",
+			qs:   q,
+			args: args{[]string{"d"}},
+			want: false,
+		},
+		{
+			name: "Get j",
+			qs:   q,
+			args: args{[]string{"j"}},
+			want: true,
+		},
+		{
+			name: "Get z",
+			qs:   q,
+			args: args{[]string{"z"}},
+			want: false,
+		},
+		{
+			name: "Get a",
+			qs:   q,
+			args: args{[]string{"a"}},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qs.GetBool(tt.args.path...); got != tt.want {
+				t.Errorf("QS.GetBool() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_GetAll(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want []interface{}
+	}{
+		{
+			name: "Get a->b",
+			qs:   q,
+			args: args{[]string{"a", "b"}},
+			want: []interface{}{"123"},
+		},
+		{
+			name: "Get a->g",
+			qs:   q,
+			args: args{[]string{"a", "g"}},
+			want: []interface{}{"h", "i"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			if got := q.GetAll(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QS.GetAll() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_Set(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		vals []interface{}
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want []interface{}
+	}{
+		{
+			name: "Set a->b",
+			qs:   q,
+			args: args{
+				vals: []interface{}{"a", 123, true},
+				path: []string{"a", "b"},
+			},
+			want: []interface{}{"a", 123, true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q.Set(tt.args.vals, tt.args.path...)
+			if got := q.GetAll(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QS.GetAll() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_Add(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		val  interface{}
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want []interface{}
+	}{
+		{
+			name: "Add a->b",
+			qs:   q,
+			args: args{
+				val:  true,
+				path: []string{"a", "b"},
+			},
+			want: []interface{}{"123", true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q.Add(tt.args.val, tt.args.path...)
+			if got := q.GetAll(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QS.GetAll() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
