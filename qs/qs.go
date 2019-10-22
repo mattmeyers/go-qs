@@ -3,6 +3,7 @@ package qs
 import (
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cast"
 )
@@ -12,6 +13,7 @@ import (
 type QS struct {
 	RawQuery string
 	Values   *node
+	mutex    *sync.Mutex
 }
 
 type node struct {
@@ -24,7 +26,7 @@ type node struct {
 // query string is processed by net/url's ParseQuery function. This function
 // unescapes and URL encoding.
 func New(rawQuery string) (*QS, error) {
-	qs := &QS{RawQuery: rawQuery, Values: newNode("")}
+	qs := &QS{RawQuery: rawQuery, Values: newNode(""), mutex: &sync.Mutex{}}
 	pq, err := url.ParseQuery(rawQuery)
 
 	if err != nil {
@@ -89,6 +91,9 @@ func (q *QS) navigate(path ...string) *node {
 // Set follows the provided path and overwrites the values
 // at the end with the provided values.
 func (q *QS) Set(vals []interface{}, path ...string) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
 	n := q.navigate(path...)
 	if n != nil {
 		n.Values = vals
@@ -98,6 +103,9 @@ func (q *QS) Set(vals []interface{}, path ...string) {
 // Add follows the provided path and appends the given value
 // to the list of values at the end.
 func (q *QS) Add(val interface{}, path ...string) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
 	n := q.navigate(path...)
 	if n != nil {
 		n.Values = append(n.Values, val)
@@ -109,6 +117,9 @@ func (q *QS) Add(val interface{}, path ...string) {
 // is returned. Use GetAll to retrieve all values. This function does not
 // return an error. If a value is not found, then nil is returned.
 func (q *QS) Get(path ...string) interface{} {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
 	currNode := q.Values
 	var ok bool
 
@@ -188,6 +199,9 @@ func (q *QS) GetWithDefault(def interface{}, path ...string) interface{} {
 // No error is returned from this function. If no values exists at
 // the given path, then a slice of interfaces is returned.
 func (q *QS) GetAll(path ...string) []interface{} {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
 	currNode := q.Values
 	var ok bool
 

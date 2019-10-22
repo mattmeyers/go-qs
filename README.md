@@ -1,6 +1,6 @@
 # qs
 
-This is a query string parsing library inspired by [qs](https://www.npmjs.com/package/qs). It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys from the returned keys. 
+This is a query string parsing library inspired by nodeJS's [qs](https://www.npmjs.com/package/qs) library. It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys from the returned keys. 
 
 # Installation
 
@@ -27,8 +27,8 @@ After parsing, do not try to navigate the tree structure manually, but rather us
 
 - `Get(path ...string) interface{}`
 - `GetWithDefault(def interface{}, path ...string) interface{}`
-- `Get(path ...string) []interface{}`
-- `GetWithDefault(def []interface{}, path ...string) []interface{}`
+- `GetAll(path ...string) []interface{}`
+- `GetAllWithDefault(def []interface{}, path ...string) []interface{}`
 
 This library also provides getters for specific data types using the [cast](https://github.com/spf13/cast) library. If any type conversions fail, the types zero value is returned.
 
@@ -78,3 +78,4 @@ secondVals := q.GetAll("c", "d", "e")
 - Add `ToMap() map[string]interface{}` method
 - Add `ToString() string` method
 - Add parsing options
+- Add more getters
