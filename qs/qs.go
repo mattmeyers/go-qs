@@ -13,7 +13,7 @@ import (
 type QS struct {
 	RawQuery string
 	Values   *node
-	mutex    *sync.Mutex
+	mutex    *sync.RWMutex
 }
 
 type node struct {
@@ -26,7 +26,7 @@ type node struct {
 // query string is processed by net/url's ParseQuery function. This function
 // unescapes and URL encoding.
 func New(rawQuery string) (*QS, error) {
-	qs := &QS{RawQuery: rawQuery, Values: newNode(""), mutex: &sync.Mutex{}}
+	qs := &QS{RawQuery: rawQuery, Values: newNode(""), mutex: &sync.RWMutex{}}
 	pq, err := url.ParseQuery(rawQuery)
 
 	if err != nil {
@@ -117,8 +117,8 @@ func (q *QS) Add(val interface{}, path ...string) {
 // is returned. Use GetAll to retrieve all values. This function does not
 // return an error. If a value is not found, then nil is returned.
 func (q *QS) Get(path ...string) interface{} {
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
 
 	currNode := q.Values
 	var ok bool
@@ -199,8 +199,8 @@ func (q *QS) GetWithDefault(def interface{}, path ...string) interface{} {
 // No error is returned from this function. If no values exists at
 // the given path, then a slice of interfaces is returned.
 func (q *QS) GetAll(path ...string) []interface{} {
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
 
 	currNode := q.Values
 	var ok bool
