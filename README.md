@@ -1,90 +1,80 @@
 # qs
 
-This is a query string parsing library. It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys from the returned keys. In order to be properly parsed, a query string should take the form `key1=value1&key2[]=value2&key3[subkey3]=value3...`. This query string will be parsed into the structure
-```json
-{
-  "key1": {
-    "": [
-      "value1"
-    ],
-  },
-  "key2": {
-    "": [
-      "value2"
-    ],
-  },
-  "key3": {
-    "subkey3": [
-      "value3"
-    ],
-  },
-}
+This is a query string parsing library inspired by [qs](https://www.npmjs.com/package/qs). It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys from the returned keys. 
+
+# Installation
+
+This library supports modules, or you can install with `go get`.
+```
+go get -u github.com/mattmeyers/go-qs/qs
 ```
 
-If mutiple values are provided for the same key or subkey, the values are placed in a slice. Note that missing subkeys will use the empty string as a key. Additionally, a single key can have multiple subkeys. For example, the string 
-```
-k1[sk1]=v1&k1[sk1]=v2&k1[sk2]=v3&k2[]=v4&k2[]=v5&k3=v6&k3=v7
-```
-will parse to 
-```json
-{
-  "k1": {
-    "sk1": [
-      "v1", "v2"
-    ],
-    "sk2": [
-      "v3"
-    ]
-  },
-  "k2": {
-    "": [
-      "v4", "v5"
-    ]
-  },
-  "k3": {
-    "": [
-      "v6", "v7"
-    ]
-  },
-}
+# Usage
+
+## Parsing
+
+Given a query string such as `a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true`, first initialize a QS struct with 
+
+```go
+qs.New("a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true")
 ```
 
-## Initializing
+This function will return an error if there was a problem parsing the query string. 
 
-To parse a query string, use the `qrystr.NewQS(rawQuery string)` function. This will parse the query string and return the `QS` struct containing the values data structure. If any errors occur while parsing, the error will be returned.
+## Getting Values
 
-## Retrieving Values
+After parsing, do not try to navigate the tree structure manually, but rather use one of the many provided getter methods. To provide flexibility, values are stored in a slice of interfaces. There are four generic getters to get these values without and type conversions.
 
-The values data structure can always be directly accessed in the `QS.Values` property. Alternatively, the keys can be provided to the variadic `Get` or `GetAll` methods. If multiple values exist at a given path, `Get` will return the first in the slice while `GetAll` will return the entire slice. Neither of these methods return an error. If no values exist at the given path, then either `""` or `[]string{}` is returned.
+- `Get(path ...string) interface{}`
+- `GetWithDefault(def interface{}, path ...string) interface{}`
+- `Get(path ...string) []interface{}`
+- `GetWithDefault(def []interface{}, path ...string) []interface{}`
 
-```Go
-package main
+This library also provides getters for specific data types using the [cast](https://github.com/spf13/cast) library. If any type conversions fail, the types zero value is returned.
 
-import (
-	"fmt"
+- `GetString(path ...string) string`
+- `GetInt(path ...string) int`
+- `GetInt32(path ...string) int32`
+- `GetInt64(path ...string) int64`
+- `GetFloat32(path ...string) float32`
+- `GetFloat64(path ...string) float64`
+- `GetBool(path ...string) bool`
 
-	"bitbucket.org/mcgstrategic/qrystr"
-)
+For example, suppose we have the query string `a[b]=3&c[d][e]=true`. We can retrieve both values using
 
-func main() {
-	query := "k1[sk1]=v1&k1[sk1]=v2&k1[sk2]=v3&k2[]=v4&k2[]=v5&k3=v6&k3=v7"
-	qs, _ := qrystr.NewQS(query)
+```go
+q, _ := qs.New("a[b]=3&c[d][e]=true")
 
-	fmt.Printf("%v\n", qs.Values)
-	// map[k1:map[sk1:[v1 v2] sk2:[v3]] k2:map[:[v4 v5]] k3:map[:[v6 v7]]]
-	fmt.Printf("%v\n", qs.Get("k1", "sk1"))
-	// v1
-	fmt.Printf("%v\n", qs.GetAll("k1", "sk1"))
-	// [v1 v2]
-	fmt.Printf("%v\n", qs.Get("k2"))
-	// v4
-	fmt.Printf("%v\n", qs.GetAll("k3"))
-	// [v6 v7]
-	fmt.Printf("%v\n", qs.Get("k1", "sk1"))
-	// v1
-	fmt.Printf("%v\n", qs.Get("k1", "sk3"))
-	// ""
-	fmt.Printf("%v\n", qs.GetAll("k1", "sk3"))
-	// []
-}
+firstVal := q.GetInt("a", "b")
+// firstVal == 3
+
+secondVal := q.getBool("c", "d", "e")
+// secondVal == true
 ```
+
+## Setting Values
+
+Provided a parsed query string, values can be set or added. 
+
+- `Set(values []interface{}, path ...string)`
+- `Add(value interface{}, path ...string)`
+
+Note that setting completely overwrites the previous values while adding simply appends a new value to the list.  For example
+
+```go
+q, _ := qs.New("a[b]=3&c[d][e]=true")
+
+q.Set([]interface{1, "a", true}, "a", "b")
+firstVals := q.GetAll("a", "b")
+// firstVals == []interface{1, "a", true}
+
+q.Add("def", "c", "d", "e")
+secondVals := q.GetAll("c", "d", "e")
+// firstVals == []interface{true, "def"}
+```
+
+# TODO
+
+- Add `ToMap() map[string]interface{}` method
+- Add `ToString() string` method
+- Add parsing options
