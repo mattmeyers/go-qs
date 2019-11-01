@@ -30,9 +30,10 @@ After parsing, do not try to navigate the tree structure manually, but rather us
 - `GetAll(path ...string) []interface{}`
 - `GetAllWithDefault(def []interface{}, path ...string) []interface{}`
 
-This library also provides getters for specific data types using the [cast](https://github.com/spf13/cast) library. If any type conversions fail, the types zero value is returned.
+This library also provides getters for specific data types using the [cast](https://github.com/spf13/cast) library. If any type conversions fail, the type's zero value is returned.
 
 - `GetString(path ...string) string`
+- `GetStringSlice(path ...string) []string`
 - `GetInt(path ...string) int`
 - `GetInt32(path ...string) int32`
 - `GetInt64(path ...string) int64`

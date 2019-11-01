@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewQS(t *testing.T) {
-	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
+	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&d[]=2.5&j=true"
 	q, err := New(query)
 	if err != nil {
 		t.Fatalf("NewQS failed with err, %s", err)
@@ -48,7 +48,7 @@ func TestNewQS(t *testing.T) {
 			},
 			"d": &node{
 				Key:      "d",
-				Values:   []interface{}{"1.05"},
+				Values:   []interface{}{"1.05", "2.5"},
 				Children: make(map[string]*node),
 			},
 			"j": &node{
@@ -330,6 +330,44 @@ func TestQS_GetBool(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.qs.GetBool(tt.args.path...); got != tt.want {
 				t.Errorf("QS.GetBool() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_GetStringSlice(t *testing.T) {
+	query := "a[]=b&a[]=c&a[]=d&e[f]=g&e[f]=h"
+	q, err := New(query)
+	if err != nil {
+		t.Fatalf("NewQS failed with err, %s", err)
+	}
+
+	type args struct {
+		path []string
+	}
+	tests := []struct {
+		name string
+		qs   *QS
+		args args
+		want []string
+	}{
+		{
+			name: "Get a",
+			qs:   q,
+			args: args{[]string{"a"}},
+			want: []string{"b", "c", "d"},
+		},
+		{
+			name: "Get e->f",
+			qs:   q,
+			args: args{[]string{"e", "f"}},
+			want: []string{"g", "h"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.qs.GetStringSlice(tt.args.path...); !cmp.Equal(got, tt.want) {
+				t.Errorf("QS.GetStringSlice() = %v, want %v", got, tt.want)
 			}
 		})
 	}

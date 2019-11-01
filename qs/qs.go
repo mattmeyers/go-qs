@@ -147,6 +147,11 @@ func (q *QS) GetString(path ...string) string {
 	return cast.ToString(q.Get(path...))
 }
 
+// GetStringSlice retrieves all values at a given path as a string slice.
+func (q *QS) GetStringSlice(path ...string) []string {
+	return cast.ToStringSlice(q.GetAll(path...))
+}
+
 // GetInt retrieves the value at the given path as an int. If
 // the value cannot be converted to an int, 0 is returned.
 func (q *QS) GetInt(path ...string) int {
