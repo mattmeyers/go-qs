@@ -577,6 +577,7 @@ func TestQS_String(t *testing.T) {
 		{
 			name: "1",
 			fields: fields{
+				mutex: &sync.RWMutex{},
 				Values: &node{
 					Key: "",
 					Children: map[string]*node{
@@ -604,6 +605,7 @@ func TestQS_String(t *testing.T) {
 		{
 			name: "2",
 			fields: fields{
+				mutex: &sync.RWMutex{},
 				Values: &node{
 					Key:    "",
 					Values: make([]interface{}, 0),
@@ -682,6 +684,7 @@ func TestQS_EncodedString(t *testing.T) {
 		{
 			name: "1",
 			fields: fields{
+				mutex: &sync.RWMutex{},
 				Values: &node{
 					Key: "",
 					Children: map[string]*node{
