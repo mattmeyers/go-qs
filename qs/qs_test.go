@@ -2,6 +2,7 @@ package qs
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,7 +57,8 @@ func TestNewQS(t *testing.T) {
 				Values:   []interface{}{"true"},
 				Children: make(map[string]*node),
 			},
-		}}
+		},
+	}
 
 	if !(cmp.Equal(q.Values, exp)) {
 		t.Fatalf("Generated incorrect tree: %s", cmp.Diff(q.Values, exp))
@@ -536,6 +538,166 @@ func Test_parseKey(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("parseKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_String(t *testing.T) {
+	type fields struct {
+		RawQuery string
+		Values   *node
+		MaxDepth int
+		mutex    *sync.RWMutex
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "1",
+			fields: fields{
+				Values: &node{
+					Key: "",
+					Children: map[string]*node{
+						"a": &node{
+							Key:      "a",
+							Values:   []interface{}{"val1"},
+							Children: map[string]*node{},
+						},
+						"b": &node{
+							Key:    "b",
+							Values: []interface{}{"val2", "val3"},
+							Children: map[string]*node{
+								"c": &node{
+									Key:      "c",
+									Values:   []interface{}{"val4"},
+									Children: map[string]*node{},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: "a=val1&b=val2&b=val3&b[c]=val4",
+		},
+		{
+			name: "2",
+			fields: fields{
+				Values: &node{
+					Key:    "",
+					Values: make([]interface{}, 0),
+					Children: map[string]*node{
+						"a": &node{
+							Key:    "a",
+							Values: make([]interface{}, 0),
+							Children: map[string]*node{
+								"b": &node{
+									Key:    "b",
+									Values: []interface{}{"123"},
+									Children: map[string]*node{
+										"c": &node{
+											Key:    "c",
+											Values: make([]interface{}, 0),
+											Children: map[string]*node{
+												"d": &node{
+													Key:      "d",
+													Values:   []interface{}{"c"},
+													Children: make(map[string]*node),
+												},
+											},
+										},
+									},
+								},
+								"g": &node{
+									Key:      "g",
+									Values:   []interface{}{"h", "i"},
+									Children: make(map[string]*node),
+								},
+							},
+						},
+						"d": &node{
+							Key:      "d",
+							Values:   []interface{}{"1.05", "2.5"},
+							Children: make(map[string]*node),
+						},
+						"j": &node{
+							Key:      "j",
+							Values:   []interface{}{"true"},
+							Children: make(map[string]*node),
+						},
+					},
+				},
+			},
+			want: "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d=1.05&d=2.5&j=true",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &QS{
+				RawQuery: tt.fields.RawQuery,
+				Values:   tt.fields.Values,
+				MaxDepth: tt.fields.MaxDepth,
+				mutex:    tt.fields.mutex,
+			}
+			if got := q.String(); got != tt.want {
+				t.Errorf("QS.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_EncodedString(t *testing.T) {
+	type fields struct {
+		RawQuery string
+		Values   *node
+		MaxDepth int
+		mutex    *sync.RWMutex
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "1",
+			fields: fields{
+				Values: &node{
+					Key: "",
+					Children: map[string]*node{
+						"a": &node{
+							Key:      "a",
+							Values:   []interface{}{"val1"},
+							Children: map[string]*node{},
+						},
+						"b": &node{
+							Key:    "b",
+							Values: []interface{}{"val2", "val3"},
+							Children: map[string]*node{
+								"c": &node{
+									Key:      "c",
+									Values:   []interface{}{"val4"},
+									Children: map[string]*node{},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: "a=val1&b=val2&b=val3&b%5Bc%5D=val4",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &QS{
+				RawQuery: tt.fields.RawQuery,
+				Values:   tt.fields.Values,
+				MaxDepth: tt.fields.MaxDepth,
+				mutex:    tt.fields.mutex,
+			}
+			if got := q.EncodedString(); got != tt.want {
+				t.Errorf("QS.EncodedString() = %v, want %v", got, tt.want)
 			}
 		})
 	}

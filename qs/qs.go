@@ -2,7 +2,9 @@ package qs
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/spf13/cast"
@@ -289,4 +291,40 @@ func (q *QS) GetAllWithDefault(def []interface{}, path ...string) []interface{} 
 		return def
 	}
 	return vals
+}
+
+// String converts a QS data structure into its string form. This string is not
+// properly encoded for use in URLs. Use EncodedString to retrieve an encoded
+// version of the query string.
+func (q *QS) String() string { return print("", q.Values, false) }
+
+// EncodedString converts a QS data structure into its string form. All keys and
+// values are encoded and ready for use in a URL.
+func (q *QS) EncodedString() string { return print("", q.Values, true) }
+
+func print(key string, n *node, encode bool) string {
+	if key == "" {
+		key = n.Key
+	} else {
+		key = fmt.Sprintf("%s[%s]", key, n.Key)
+	}
+
+	s := make([]string, 0)
+	for _, val := range n.Values {
+		if encode {
+			s = append(s, fmt.Sprintf("%s=%v", url.QueryEscape(key), url.QueryEscape(fmt.Sprintf("%v", val))))
+		} else {
+			s = append(s, fmt.Sprintf("%s=%v", key, val))
+		}
+	}
+
+	if len(n.Children) == 0 {
+		return strings.Join(s, "&")
+	}
+
+	for _, v := range n.Children {
+		s = append(s, print(key, v, encode))
+	}
+
+	return strings.Join(s, "&")
 }
