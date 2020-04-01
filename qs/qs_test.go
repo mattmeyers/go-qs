@@ -490,7 +490,8 @@ func TestQS_Add(t *testing.T) {
 
 func Test_parseKey(t *testing.T) {
 	type args struct {
-		key string
+		key      string
+		maxDepth int
 	}
 	tests := []struct {
 		name    string
@@ -528,10 +529,28 @@ func Test_parseKey(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name:    "a[b][c][d] max 2",
+			args:    args{key: "a[b][c][d]", maxDepth: 2},
+			want:    []string{"a", "b", "[c][d]"},
+			wantErr: false,
+		},
+		{
+			name:    "a[b][c][d][e][f] max 5",
+			args:    args{key: "a[b][c][d][e][f]", maxDepth: 5},
+			want:    []string{"a", "b", "c", "d", "e", "[f]"},
+			wantErr: false,
+		},
+		{
+			name:    "a[b][c][d] max -1",
+			args:    args{key: "a[b][c][d]", maxDepth: -1},
+			want:    []string{"a", "b", "c", "d"},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseKey(tt.args.key)
+			got, err := parseKey(tt.args.key, tt.args.maxDepth)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseKey() error = %v, wantErr %v", err, tt.wantErr)
 				return

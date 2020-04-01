@@ -20,10 +20,15 @@ var (
 )
 
 // QS holds both the raw query string as well as the parsed data structure.
-// If a subkey is not provided, an empty string is used as the subkey.
+// If a subkey is not provided, an empty string is used as the subkey. All
+// operations on this struct are safe for concurrent use.
 type QS struct {
+	// RawQuery is the string passed to New.
 	RawQuery string
-	Values   *node
+	// Values holds the parsed data. The top level node is a placeholder with
+	// the key "" and no values.
+	Values *node
+	// MaxDepth is the number of subkeys to parse before stopping (Default: 5)
 	MaxDepth int
 	mutex    *sync.RWMutex
 }
@@ -37,7 +42,11 @@ type node struct {
 // Option is a functional option used to configure a new QS.
 type Option func(*QS)
 
-// MaxDepth sets the MaxDepth property of a QS struct.
+// MaxDepth sets the MaxDepth property of a QS struct. If MaxDepth is less
+// than or equal to zero, then the query string will be parsed completely.
+// Otherwise, the first MaxDepth subkeys will be parsed and the rest of the
+// key will be used as the final subkey in the path e.g.
+//		a[b][c][d] w/ max 2 => []string{"a", "b", "[c][d]"}
 func MaxDepth(d int) Option {
 	return func(qs *QS) {
 		qs.MaxDepth = d
@@ -67,7 +76,7 @@ func New(rawQuery string, opts ...Option) (*QS, error) {
 	}
 
 	for key, val := range pq {
-		keys, err := parseKey(key)
+		keys, err := parseKey(key, qs.MaxDepth)
 		if err != nil {
 			return nil, err
 		}
@@ -78,16 +87,23 @@ func New(rawQuery string, opts ...Option) (*QS, error) {
 	return qs, nil
 }
 
-func parseKey(key string) ([]string, error) {
+func parseKey(key string, maxDepth int) ([]string, error) {
 	inBrackets := false
 	cur := make([]rune, 0)
 	keys := make([]string, 0)
+	depth := 0
 
-	for _, c := range key {
+	for i, c := range key {
 		if c == '[' && !inBrackets {
 			inBrackets = true
 			keys = append(keys, string(cur))
 			cur = cur[:0]
+			depth++
+
+			if depth == maxDepth {
+				cur = []rune(key)[i:]
+				break
+			}
 		} else if c == ']' && inBrackets {
 			inBrackets = false
 		} else if (c == '[' && inBrackets) || (c == ']' && !inBrackets) {
@@ -296,11 +312,21 @@ func (q *QS) GetAllWithDefault(def []interface{}, path ...string) []interface{} 
 // String converts a QS data structure into its string form. This string is not
 // properly encoded for use in URLs. Use EncodedString to retrieve an encoded
 // version of the query string.
-func (q *QS) String() string { return print("", q.Values, false) }
+func (q *QS) String() string {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	return print("", q.Values, false)
+}
 
 // EncodedString converts a QS data structure into its string form. All keys and
 // values are encoded and ready for use in a URL.
-func (q *QS) EncodedString() string { return print("", q.Values, true) }
+func (q *QS) EncodedString() string {
+	q.mutex.RLock()
+	defer q.mutex.RUnlock()
+
+	return print("", q.Values, true)
+}
 
 func print(key string, n *node, encode bool) string {
 	if key == "" {

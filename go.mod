@@ -1,4 +1,4 @@
-module bitbucket.org/mcgstrategic/go-qs
+module github.com/mattmeyers/go-qs
 
 go 1.13
 
