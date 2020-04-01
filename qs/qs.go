@@ -1,11 +1,20 @@
 package qs
 
 import (
+	"errors"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/spf13/cast"
+)
+
+var (
+	// ErrInvalidQS will be returned when the provided query string cannot
+	// be parsed.
+	ErrInvalidQS = errors.New("invalid query string")
+	// ErrUnbalanced will be returned when brackets in the query string are
+	// unbalanced e.g. a[[b] or a[b]].
+	ErrUnbalanced = errors.New("brackets are unbalanced")
 )
 
 // QS holds both the raw query string as well as the parsed data structure.
@@ -13,6 +22,7 @@ import (
 type QS struct {
 	RawQuery string
 	Values   *node
+	MaxDepth int
 	mutex    *sync.RWMutex
 }
 
@@ -22,27 +32,72 @@ type node struct {
 	Children map[string]*node
 }
 
+// Option is a functional option used to configure a new QS.
+type Option func(*QS)
+
+// MaxDepth sets the MaxDepth property of a QS struct.
+func MaxDepth(d int) Option {
+	return func(qs *QS) {
+		qs.MaxDepth = d
+	}
+}
+
 // New produces a new QS data structure. Before parsing subkeys, the raw
 // query string is processed by net/url's ParseQuery function. This function
-// unescapes and URL encoding.
-func New(rawQuery string) (*QS, error) {
-	qs := &QS{RawQuery: rawQuery, Values: newNode(""), mutex: &sync.RWMutex{}}
-	pq, err := url.ParseQuery(rawQuery)
+// unescapes any URL encoding.
+//
+// An error will be returned if the provided query string cannot be parsed.
+func New(rawQuery string, opts ...Option) (*QS, error) {
+	qs := &QS{
+		RawQuery: rawQuery,
+		Values:   newNode(""),
+		MaxDepth: 5,
+		mutex:    &sync.RWMutex{},
+	}
 
+	for _, opt := range opts {
+		opt(qs)
+	}
+
+	pq, err := url.ParseQuery(rawQuery)
 	if err != nil {
-		return nil, err
+		return nil, ErrInvalidQS
 	}
 
 	for key, val := range pq {
-		keys := strings.Split(key, "[")
-		for i, k := range keys {
-			keys[i] = strings.Trim(k, "]")
+		keys, err := parseKey(key)
+		if err != nil {
+			return nil, err
 		}
 
 		qs.Set(toISlice(val), keys...)
 	}
 
 	return qs, nil
+}
+
+func parseKey(key string) ([]string, error) {
+	inBrackets := false
+	cur := make([]rune, 0)
+	keys := make([]string, 0)
+
+	for _, c := range key {
+		if c == '[' && !inBrackets {
+			inBrackets = true
+			keys = append(keys, string(cur))
+			cur = cur[:0]
+		} else if c == ']' && inBrackets {
+			inBrackets = false
+		} else if (c == '[' && inBrackets) || (c == ']' && !inBrackets) {
+			return nil, ErrInvalidQS
+		} else {
+			cur = append(cur, c)
+		}
+	}
+
+	keys = append(keys, string(cur))
+
+	return keys, nil
 }
 
 func toISlice(s []string) []interface{} {
@@ -72,7 +127,6 @@ func (q *QS) navigate(path ...string) *node {
 	}
 
 	for i, p := range path {
-
 		childNode, ok := currNode.Children[p]
 		if !ok {
 			currNode.Children[p] = newNode(p)

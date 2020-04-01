@@ -485,3 +485,58 @@ func TestQS_Add(t *testing.T) {
 		})
 	}
 }
+
+func Test_parseKey(t *testing.T) {
+	type args struct {
+		key string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "empty key",
+			args:    args{key: ""},
+			want:    []string{""},
+			wantErr: false,
+		},
+		{
+			name:    "a",
+			args:    args{key: "a"},
+			want:    []string{"a"},
+			wantErr: false,
+		},
+		{
+			name:    "alpha[beta][gamma]",
+			args:    args{key: "alpha[beta][gamma]"},
+			want:    []string{"alpha", "beta", "gamma"},
+			wantErr: false,
+		},
+		{
+			name:    "alpha[[beta]",
+			args:    args{key: "alpha[[beta]"},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "alpha[beta]]",
+			args:    args{key: "alpha[beta]]"},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseKey(tt.args.key)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseKey() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseKey() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
