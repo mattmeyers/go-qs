@@ -19,6 +19,7 @@ New(rawQuery string, opts ...Option) (*QS, error)
 function. An empty string can be passed if the user wants to build a new query string. Functional options can be passed through this function to configure the new QS. At this time, the available options are:
 
 * `MaxDepth(d int)` - Sets the max number of subkeys that will be parsed before stopping. Pass a non positive integer to parse all subkeys regardless of depth. Defaults to 5.
+* `PathDelimiter(d string)` - Sets the string that is used to split path strings. Setting this option overrides the variadic nature of the setters and getters. Instead, only the first paramter is considered and the delimiter is used to split the string into path components. Defaults to the empty string.
 
 This function will return one of two errors if parsing fails
 
@@ -67,6 +68,18 @@ firstVal := q.GetInt("a", "b")
 // firstVal == 3
 
 secondVal := q.getBool("c", "d", "e")
+// secondVal == true
+```
+
+Alternatively, if we set the path delimiter, we can do
+
+```go
+q, _ := qs.New("a[b]=3&c[d][e]=true", PathDelimiter("."))
+
+firstVal := q.GetInt("a.b")
+// firstVal == 3
+
+secondVal := q.getBool("c.d.e")
 // secondVal == true
 ```
 

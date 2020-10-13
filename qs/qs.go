@@ -30,7 +30,14 @@ type QS struct {
 	Values *node
 	// MaxDepth is the number of subkeys to parse before stopping (Default: 5)
 	MaxDepth int
-	mutex    *sync.RWMutex
+	// PathDelimiter is the string that separates keys in the path. Providing
+	// a delimiter overrides the default behavior of supplying a path as
+	// variadic arguments to Get, Add, Set, etc. If this option is set, then
+	// any variadic methods will instead split the first parameter on this
+	// value and treat the resulting slice as the path elements. (Default: "")
+	PathDelimiter string
+
+	mutex *sync.RWMutex
 }
 
 type node struct {
@@ -50,6 +57,17 @@ type Option func(*QS)
 func MaxDepth(d int) Option {
 	return func(qs *QS) {
 		qs.MaxDepth = d
+	}
+}
+
+// PathDelimiter sets the PathDelimiter property of a QS struct. Providing
+// a delimiter overrides the default behavior of supplying a path as
+// variadic arguments to Get, Add, Set, etc. If this option is set, then
+// any variadic methods will instead split the first parameter on this
+// value and treat the resulting slice as the path elements.
+func PathDelimiter(d string) Option {
+	return func(qs *QS) {
+		qs.PathDelimiter = d
 	}
 }
 
@@ -73,6 +91,11 @@ func New(rawQuery string, opts ...Option) (*QS, error) {
 	pq, err := url.ParseQuery(rawQuery)
 	if err != nil {
 		return nil, ErrInvalidQS
+	}
+
+	if qs.PathDelimiter != "" {
+		defer func(del string) { qs.PathDelimiter = del }(qs.PathDelimiter)
+		qs.PathDelimiter = ""
 	}
 
 	for key, val := range pq {
@@ -135,8 +158,6 @@ func newNode(key string) *node {
 }
 
 func (q *QS) navigate(path ...string) *node {
-	currNode := q.Values
-
 	pLen := len(path)
 
 	if path[pLen-1] == "" {
@@ -144,6 +165,7 @@ func (q *QS) navigate(path ...string) *node {
 		pLen--
 	}
 
+	currNode := q.Values
 	for i, p := range path {
 		childNode, ok := currNode.Children[p]
 		if !ok {
@@ -166,6 +188,10 @@ func (q *QS) Set(vals []interface{}, path ...string) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
+	if q.PathDelimiter != "" && len(path) > 0 {
+		path = strings.Split(path[0], q.PathDelimiter)
+	}
+
 	n := q.navigate(path...)
 	if n != nil {
 		n.Values = vals
@@ -178,6 +204,10 @@ func (q *QS) Add(val interface{}, path ...string) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
+	if q.PathDelimiter != "" && len(path) > 0 {
+		path = strings.Split(path[0], q.PathDelimiter)
+	}
+
 	n := q.navigate(path...)
 	if n != nil {
 		n.Values = append(n.Values, val)
@@ -189,12 +219,19 @@ func (q *QS) Add(val interface{}, path ...string) {
 // is returned. Use GetAll to retrieve all values. This function does not
 // return an error. If a value is not found, then nil is returned.
 func (q *QS) Get(path ...string) interface{} {
+	if len(path) == 0 {
+		return nil
+	}
+
 	q.mutex.RLock()
 	defer q.mutex.RUnlock()
 
 	currNode := q.Values
 	var ok bool
 
+	if q.PathDelimiter != "" {
+		path = strings.Split(path[0], q.PathDelimiter)
+	}
 	pLen := len(path)
 
 	for i, p := range path {
@@ -276,12 +313,19 @@ func (q *QS) GetWithDefault(def interface{}, path ...string) interface{} {
 // No error is returned from this function. If no values exists at
 // the given path, then a slice of interfaces is returned.
 func (q *QS) GetAll(path ...string) []interface{} {
+	if len(path) == 0 {
+		return make([]interface{}, 0)
+	}
+
 	q.mutex.RLock()
 	defer q.mutex.RUnlock()
 
 	currNode := q.Values
 	var ok bool
 
+	if q.PathDelimiter != "" {
+		path = strings.Split(path[0], q.PathDelimiter)
+	}
 	pLen := len(path)
 
 	for i, p := range path {

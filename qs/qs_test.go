@@ -66,67 +66,135 @@ func TestNewQS(t *testing.T) {
 }
 
 func TestQS_Get(t *testing.T) {
-	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
-	q, err := New(query)
-	if err != nil {
-		t.Fatalf("NewQS failed with err, %s", err)
-	}
-
 	type args struct {
 		path []string
 	}
 	tests := []struct {
-		name string
-		qs   *QS
-		args args
-		want interface{}
+		name      string
+		delimiter string
+		args      args
+		want      interface{}
 	}{
 		{
-			name: "Get a->b",
-			qs:   q,
-			args: args{[]string{"a", "b"}},
-			want: "123",
+			name:      "Get nothing",
+			delimiter: "",
+			args:      args{[]string{}},
+			want:      nil,
 		},
 		{
-			name: "Get a->b->c->d",
-			qs:   q,
-			args: args{[]string{"a", "b", "c", "d"}},
-			want: "c",
+			name:      "Get a->b",
+			delimiter: "",
+			args:      args{[]string{"a", "b"}},
+			want:      "123",
 		},
 		{
-			name: "Get a->g",
-			qs:   q,
-			args: args{[]string{"a", "g"}},
-			want: "h",
+			name:      "Get a->b->c->d",
+			delimiter: "",
+			args:      args{[]string{"a", "b", "c", "d"}},
+			want:      "c",
 		},
 		{
-			name: "Get d",
-			qs:   q,
-			args: args{[]string{"d"}},
-			want: "1.05",
+			name:      "Get a->g",
+			delimiter: "",
+			args:      args{[]string{"a", "g"}},
+			want:      "h",
 		},
 		{
-			name: "Get j",
-			qs:   q,
-			args: args{[]string{"j"}},
-			want: "true",
+			name:      "Get d",
+			delimiter: "",
+			args:      args{[]string{"d"}},
+			want:      "1.05",
 		},
 		{
-			name: "Get z",
-			qs:   q,
-			args: args{[]string{"z"}},
-			want: nil,
+			name:      "Get j",
+			delimiter: "",
+			args:      args{[]string{"j"}},
+			want:      "true",
 		},
 		{
-			name: "Get a",
-			qs:   q,
-			args: args{[]string{"a"}},
-			want: nil,
+			name:      "Get z",
+			delimiter: "",
+			args:      args{[]string{"z"}},
+			want:      nil,
+		},
+		{
+			name:      "Get a",
+			delimiter: "",
+			args:      args{[]string{"a"}},
+			want:      nil,
+		},
+		{
+			name:      "Single byte delimiter",
+			delimiter: ".",
+			args:      args{[]string{"a.b.c.d"}},
+			want:      "c",
+		},
+		{
+			name:      "Multibyte delimiter",
+			delimiter: "::",
+			args:      args{[]string{"a::b"}},
+			want:      "123",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.qs.Get(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+			q, err := New(
+				"a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true",
+				PathDelimiter(tt.delimiter),
+			)
+			if err != nil {
+				t.Fatalf("NewQS failed with err, %s", err)
+			}
+
+			if got := q.Get(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("QS.Get() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestQS_Get_PathDelimiter(t *testing.T) {
+	query := "a[b]=123&a[b][c][d]=c&a[g:h]=h&a[g]=i&d[]=1.05&j=true"
+	tests := []struct {
+		name      string
+		delimiter string
+		path      []string
+		want      string
+	}{
+		{
+			name:      "No delimiter",
+			delimiter: "",
+			path:      []string{"a", "b"},
+			want:      "123",
+		},
+		{
+			name:      "Single byte delimiter",
+			delimiter: ".",
+			path:      []string{"a.b.c.d"},
+			want:      "c",
+		},
+		{
+			name:      "Multibyte delimiter",
+			delimiter: "::",
+			path:      []string{"a::b"},
+			want:      "123",
+		},
+		{
+			name:      "Multibyte delimiter, part of delimiter in path",
+			delimiter: "::",
+			path:      []string{"a::g:h"},
+			want:      "h",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			qs, err := New(query, PathDelimiter(tt.delimiter))
+			if err != nil {
+				t.Fatalf("unable to create new QS: %v", err)
+			}
+
+			if got := qs.Get(tt.path...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("QS.Get() = %v, want %v", got, tt.want)
 			}
 		})
@@ -376,36 +444,49 @@ func TestQS_GetStringSlice(t *testing.T) {
 }
 
 func TestQS_GetAll(t *testing.T) {
-	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
-	q, err := New(query)
-	if err != nil {
-		t.Fatalf("NewQS failed with err, %s", err)
-	}
-
 	type args struct {
 		path []string
 	}
 	tests := []struct {
-		name string
-		qs   *QS
-		args args
-		want []interface{}
+		name      string
+		delimiter string
+		args      args
+		want      []interface{}
 	}{
 		{
-			name: "Get a->b",
-			qs:   q,
-			args: args{[]string{"a", "b"}},
-			want: []interface{}{"123"},
+			name:      "No path",
+			delimiter: "",
+			args:      args{[]string{}},
+			want:      []interface{}{},
 		},
 		{
-			name: "Get a->g",
-			qs:   q,
-			args: args{[]string{"a", "g"}},
-			want: []interface{}{"h", "i"},
+			name:      "Get a->b",
+			delimiter: "",
+			args:      args{[]string{"a", "b"}},
+			want:      []interface{}{"123"},
+		},
+		{
+			name:      "Get a->g",
+			delimiter: "",
+			args:      args{[]string{"a", "g"}},
+			want:      []interface{}{"h", "i"},
+		},
+		{
+			name:      "Get a->g w/ delimiter",
+			delimiter: ".",
+			args:      args{[]string{"a.g"}},
+			want:      []interface{}{"h", "i"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			q, err := New(
+				"a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true",
+				PathDelimiter(tt.delimiter),
+			)
+			if err != nil {
+				t.Fatalf("NewQS failed with err, %s", err)
+			}
 
 			if got := q.GetAll(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("QS.GetAll() = %v, want %v", got, tt.want)
@@ -415,34 +496,45 @@ func TestQS_GetAll(t *testing.T) {
 }
 
 func TestQS_Set(t *testing.T) {
-	query := "a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true"
-	q, err := New(query)
-	if err != nil {
-		t.Fatalf("NewQS failed with err, %s", err)
-	}
-
 	type args struct {
 		vals []interface{}
 		path []string
 	}
 	tests := []struct {
-		name string
-		qs   *QS
-		args args
-		want []interface{}
+		name      string
+		delimiter string
+		args      args
+		want      []interface{}
 	}{
 		{
-			name: "Set a->b",
-			qs:   q,
+			name:      "Set a->b",
+			delimiter: "",
 			args: args{
 				vals: []interface{}{"a", 123, true},
 				path: []string{"a", "b"},
 			},
 			want: []interface{}{"a", 123, true},
 		},
+		{
+			name:      "Set a->b w/ delimiter",
+			delimiter: ".",
+			args: args{
+				vals: []interface{}{"a", 123, true},
+				path: []string{"a.b"},
+			},
+			want: []interface{}{"a", 123, true},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			q, err := New(
+				"a[b]=123&a[b][c][d]=c&a[g]=h&a[g]=i&d[]=1.05&j=true",
+				PathDelimiter(tt.delimiter),
+			)
+			if err != nil {
+				t.Fatalf("NewQS failed with err, %s", err)
+			}
+
 			q.Set(tt.args.vals, tt.args.path...)
 			if got := q.GetAll(tt.args.path...); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("QS.GetAll() = %v, want %v", got, tt.want)
