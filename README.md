@@ -1,5 +1,7 @@
 # qs
 
+![Build](https://github.com/mattmeyers/go-qs/actions/workflows/go.yml/badge.svg)
+
 This is a query string parsing library inspired by nodeJS's [qs](https://www.npmjs.com/package/qs) library. It uses `net/url`'s `ParseQuery` function as a starting point, then parses additional subkeys to create a tree of keys and values. Conversely, a query string can be programmatically created with this library. All functionality provided by this library is safe for concurrent use.
 
 # Installation
