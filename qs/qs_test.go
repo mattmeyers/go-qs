@@ -2,6 +2,7 @@ package qs
 
 import (
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
@@ -19,19 +20,19 @@ func TestNewQS(t *testing.T) {
 		Key:    "",
 		Values: make([]interface{}, 0),
 		Children: map[string]*node{
-			"a": &node{
+			"a": {
 				Key:    "a",
 				Values: make([]interface{}, 0),
 				Children: map[string]*node{
-					"b": &node{
+					"b": {
 						Key:    "b",
 						Values: []interface{}{"123"},
 						Children: map[string]*node{
-							"c": &node{
+							"c": {
 								Key:    "c",
 								Values: make([]interface{}, 0),
 								Children: map[string]*node{
-									"d": &node{
+									"d": {
 										Key:      "d",
 										Values:   []interface{}{"c"},
 										Children: make(map[string]*node),
@@ -40,19 +41,19 @@ func TestNewQS(t *testing.T) {
 							},
 						},
 					},
-					"g": &node{
+					"g": {
 						Key:      "g",
 						Values:   []interface{}{"h", "i"},
 						Children: make(map[string]*node),
 					},
 				},
 			},
-			"d": &node{
+			"d": {
 				Key:      "d",
 				Values:   []interface{}{"1.05", "2.5"},
 				Children: make(map[string]*node),
 			},
-			"j": &node{
+			"j": {
 				Key:      "j",
 				Values:   []interface{}{"true"},
 				Children: make(map[string]*node),
@@ -673,16 +674,16 @@ func TestQS_String(t *testing.T) {
 				Values: &node{
 					Key: "",
 					Children: map[string]*node{
-						"a": &node{
+						"a": {
 							Key:      "a",
 							Values:   []interface{}{"val1"},
 							Children: map[string]*node{},
 						},
-						"b": &node{
+						"b": {
 							Key:    "b",
 							Values: []interface{}{"val2", "val3"},
 							Children: map[string]*node{
-								"c": &node{
+								"c": {
 									Key:      "c",
 									Values:   []interface{}{"val4"},
 									Children: map[string]*node{},
@@ -702,19 +703,19 @@ func TestQS_String(t *testing.T) {
 					Key:    "",
 					Values: make([]interface{}, 0),
 					Children: map[string]*node{
-						"a": &node{
+						"a": {
 							Key:    "a",
 							Values: make([]interface{}, 0),
 							Children: map[string]*node{
-								"b": &node{
+								"b": {
 									Key:    "b",
 									Values: []interface{}{"123"},
 									Children: map[string]*node{
-										"c": &node{
+										"c": {
 											Key:    "c",
 											Values: make([]interface{}, 0),
 											Children: map[string]*node{
-												"d": &node{
+												"d": {
 													Key:      "d",
 													Values:   []interface{}{"c"},
 													Children: make(map[string]*node),
@@ -723,19 +724,19 @@ func TestQS_String(t *testing.T) {
 										},
 									},
 								},
-								"g": &node{
+								"g": {
 									Key:      "g",
 									Values:   []interface{}{"h", "i"},
 									Children: make(map[string]*node),
 								},
 							},
 						},
-						"d": &node{
+						"d": {
 							Key:      "d",
 							Values:   []interface{}{"1.05", "2.5"},
 							Children: make(map[string]*node),
 						},
-						"j": &node{
+						"j": {
 							Key:      "j",
 							Values:   []interface{}{"true"},
 							Children: make(map[string]*node),
@@ -754,7 +755,9 @@ func TestQS_String(t *testing.T) {
 				MaxDepth: tt.fields.MaxDepth,
 				mutex:    tt.fields.mutex,
 			}
-			if got := q.String(); got != tt.want {
+
+			got := q.String()
+			if !assertQueryStringsEqual(got, tt.want) {
 				t.Errorf("QS.String() = %v, want %v", got, tt.want)
 			}
 		})
@@ -780,16 +783,16 @@ func TestQS_EncodedString(t *testing.T) {
 				Values: &node{
 					Key: "",
 					Children: map[string]*node{
-						"a": &node{
+						"a": {
 							Key:      "a",
 							Values:   []interface{}{"val1"},
 							Children: map[string]*node{},
 						},
-						"b": &node{
+						"b": {
 							Key:    "b",
 							Values: []interface{}{"val2", "val3"},
 							Children: map[string]*node{
-								"c": &node{
+								"c": {
 									Key:      "c",
 									Values:   []interface{}{"val4"},
 									Children: map[string]*node{},
@@ -810,9 +813,33 @@ func TestQS_EncodedString(t *testing.T) {
 				MaxDepth: tt.fields.MaxDepth,
 				mutex:    tt.fields.mutex,
 			}
-			if got := q.EncodedString(); got != tt.want {
+
+			got := q.EncodedString()
+			if !assertQueryStringsEqual(got, tt.want) {
 				t.Errorf("QS.EncodedString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+func assertQueryStringsEqual(a, b string) bool {
+	aParts := strings.Split(a, "&")
+	bParts := strings.Split(b, "&")
+
+	if len(aParts) != len(bParts) {
+		return false
+	}
+
+	aMap := map[string]bool{}
+	for _, v := range aParts {
+		aMap[v] = true
+	}
+
+	for _, v := range bParts {
+		if !aMap[v] {
+			return false
+		}
+	}
+
+	return true
 }
